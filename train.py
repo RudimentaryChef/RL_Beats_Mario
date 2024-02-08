@@ -1,8 +1,8 @@
 import numpy as np
-from stable_baselines3 import ppo
+from stable_baselines3 import PPO
 
 #imports vector enviornment
-from stable_baselines3.common.vec_env import subproc_vec_env
+from stable_baselines3.common.vec_env import SubprocVecEnv
 
 #This plots the results
 from stable_baselines3.common.results_plotter import load_results, ts2xy
@@ -32,3 +32,16 @@ def make_env(env_id, rank, seed =0):
 #log directory
 log_dir = "tmp/"
 os.makedirs(log_dir, exist_ok = True)
+#four cpus with this game
+env_id = "Airstriker-Genesis"
+num_cpu = 4
+#runs four environments at once
+env = VecMonitor(SubprocVecEnv([make_env(env_id,i) for i in range(num_cpu)]), "tmp/monitor")
+#Our model is going to be a PPO model
+#Verbose = 1. How  much it tells us as it trains.
+#We change our learning_rate
+model = PPO('CnnPolicy', env, verbose= 1, tensorboard_log ="./board/", learning_rate=0.00003)
+#If you have a model already loaded/made then you can do this
+#model = PPO.load("path to the model", env = env)
+
+print("------START LEARNING YAYYY------")
