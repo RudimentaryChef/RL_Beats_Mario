@@ -17,3 +17,18 @@ from stable_baselines3.common.atari_wrappers import MaxAndSkipEnv
 
 import os
 import retro
+
+
+#adds a new environment
+def make_env(env_id, rank, seed =0):
+    def _init():
+        env = retro.make(game = env_id)
+        #Makes a decision every four frames
+        env = MaxAndSkipEnv(env,4)
+        env.seed(seed + rank)
+        return env
+    set_random_seed(seed)
+    return _init
+#log directory
+log_dir = "tmp/"
+os.makedirs(log_dir, exist_ok = True)
