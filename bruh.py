@@ -1,5 +1,7 @@
 import gym
 import numpy as np
+from RandomAgent import TimeLimitWrapper
+
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
@@ -61,42 +63,48 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
         return True
 
 
-# Create log directory
+# Create log dir
 log_dir = "tmp/"
 os.makedirs(log_dir, exist_ok=True)
-#adds a new environment
-def make_env(env_id, rank, seed =0):
+
+
+def make_env(env_id, rank, seed=0):
+    """
+    Utility function for multiprocessed env.
+
+    :param env_id: (str) the environment ID
+    :param num_env: (int) the number of environments you wish to have in subprocesses
+    :param seed: (int) the inital seed for RNG
+    :param rank: (int) index of the subprocess
+    """
+
     def _init():
-        env = retro.make(game = env_id)
-        #Makes a decision every four frames
-        env = MaxAndSkipEnv(env,4)
+        # env = gym.make(env_id)
+        env = retro.make(game=env_id)
+        env = TimeLimitWrapper(env, max_steps=2000)
+        env = MaxAndSkipEnv(env, 4)
         env.seed(seed + rank)
         return env
+
     set_random_seed(seed)
     return _init
 
-#four cpus with this game
-env_id = "Airstriker-Genesis"
-num_cpu = 4
-#runs four environments at once
-env = VecMonitor(SubprocVecEnv([make_env(env_id, i) for i in range(num_cpu)]), "tmp/TestMonitor")
-#Our model is going to be a PPO model
-#Verbose = 1. How  much it tells us as it trains.
-#We change our learning_rate
-model = PPO('CnnPolicy', env, verbose= 1, tensorboard_log ="./board/", learning_rate=0.00003)
-#If you have a model already loaded/made then you can do this
-#model = PPO.load("path to the model", env = env)
 
-print("------START LEARNING YAYYY------")
+if __name__ == '__main__':
+    env_id = "SuperMarioBros-Nes"
+    num_cpu = 4  # Number of processes to use
+    # Create the vectorized environment
+    env = VecMonitor(SubprocVecEnv([make_env(env_id, i) for i in range(num_cpu)]), "tmp/TestMonitor")
 
-#callback saves the best model each time
-#Every 1000 steps the best model is saved
+    # Stable Baselines provides you with make_vec_env() helper
+    # which does exactly the previous steps for you.
+    # You can choose between `DummyVecEnv` (usually faster) and `SubprocVecEnv`
+    # env = make_vec_env(env_id, n_envs=num_cpu, seed=0, vec_env_cls=SubprocVecEnv)
 
-#Adds a callback place. Basically picks the best of the 1000 models in log_dir
-callback = SaveOnBestTrainingRewardCallback(check_freq=1000,log_dir = log_dir)
-#tells the model how to learn
-model.learn(total_timesteps = 1000000, callback = callback, tb_log_name = "first try!!!")
-#saves our model
-model.save(env_id)
-
-print("WE DONE WOOOOOOOOOOH")
+    model = PPO('CnnPolicy', env, verbose=1, tensorboard_log="./board/", learning_rate=0.00003)
+    # model = PPO.load("tmp/best_model", env=env)
+    print("------------- Start Learning -------------")
+    callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=log_dir)
+    model.learn(total_timesteps=5000000, callback=callback, tb_log_name="PPO-00003")
+    model.save(env_id)
+    print("------------- Done Learning -------------")
